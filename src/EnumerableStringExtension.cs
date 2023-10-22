@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Soenneker.Extensions.String;
 
 namespace Soenneker.Extensions.Enumerable.String;
@@ -23,5 +24,13 @@ public static class EnumerableStringExtension
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Checks if any item in the enumerable contains a part of a string
+    /// </summary>
+    public static bool ContainsAPart(this IEnumerable<string> enumerable, string part, bool ignoreCase = true)
+    {
+        return enumerable.Any(str => str.Contains(part, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
     }
 }
