@@ -38,15 +38,18 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Equivalent to string.Join(", ", enumerable)
+    /// Equivalent to string.Join(",", enumerable).
     /// </summary>
     /// <returns>an empty string if enumerable is null</returns>
     [Pure]
-    public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable)
+    public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false)
     {
         if (enumerable == null)
             return "";
 
-        return string.Join(", ", enumerable);
+        if (includeSpace)
+            return string.Join(", ", enumerable);
+        
+        return string.Join(",", enumerable);
     }
 }
