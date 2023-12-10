@@ -14,6 +14,8 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Partition Key, Document Id
     /// </summary>
+    /// <param name="ids">The enumerable of string ids</param>
+    /// <returns>A list of tuples containing the partition key and document id</returns>
     [Pure]
     public static List<Tuple<string, string>> ToSplitIds(this IEnumerable<string> ids)
     {
@@ -31,6 +33,10 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Checks if any item in the enumerable contains a part of a string
     /// </summary>
+    /// <param name="enumerable">The enumerable of strings</param>
+    /// <param name="part">The part to search for</param>
+    /// <param name="ignoreCase">True to ignore case, false otherwise</param>
+    /// <returns>True if any item contains the part, false otherwise</returns>
     [Pure]
     public static bool ContainsAPart(this IEnumerable<string> enumerable, string part, bool ignoreCase = true)
     {
@@ -40,7 +46,10 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Equivalent to string.Join(",", enumerable).
     /// </summary>
-    /// <returns>an empty string if enumerable is null</returns>
+    /// <typeparam name="T">The type of the enumerable</typeparam>
+    /// <param name="enumerable">The enumerable to join</param>
+    /// <param name="includeSpace">True to include a space after each comma, false otherwise</param>
+    /// <returns>A comma-separated string representation of the enumerable</returns>
     [Pure]
     public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false)
     {
@@ -49,7 +58,29 @@ public static class EnumerableStringExtension
 
         if (includeSpace)
             return string.Join(", ", enumerable);
-        
+
         return string.Join(",", enumerable);
+    }
+
+    /// <summary>
+    /// Converts all strings in the enumerable to lowercase. Equivalent to <code>enumerable.Select(str => str.ToLowerInvariant()</code>
+    /// </summary>
+    /// <param name="enumerable">The enumerable of strings</param>
+    /// <returns>An enumerable of lowercase strings</returns>
+    [Pure]
+    public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
+    {
+        return enumerable.Select(str => str.ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// Converts all strings in the enumerable to uppercase. Equivalent to <code>enumerable.Select(str => str.ToUpperInvariant()</code>
+    /// </summary>
+    /// <param name="enumerable">The enumerable of strings</param>
+    /// <returns>An enumerable of uppercase strings</returns>
+    [Pure]
+    public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
+    {
+        return enumerable.Select(str => str.ToUpperInvariant());
     }
 }
