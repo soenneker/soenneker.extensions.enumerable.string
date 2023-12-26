@@ -8,5 +8,5 @@
 ## Installation
 
 ```
-Install-Package Soenneker.Extensions.Enumerable.String
+dotnet add package Soenneker.Extensions.Enumerable.String
 ```
