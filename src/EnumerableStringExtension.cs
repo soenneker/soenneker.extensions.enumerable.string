@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Linq;
 using Soenneker.Extensions.String;
 
 namespace Soenneker.Extensions.Enumerable.String;
@@ -38,13 +37,32 @@ public static class EnumerableStringExtension
     /// <param name="ignoreCase">True to ignore case, false otherwise</param>
     /// <returns>True if any item contains the part, false otherwise</returns>
     [Pure]
-    public static bool ContainsAPart(this IEnumerable<string> enumerable, string part, bool ignoreCase = true)
+    public static bool ContainsAPart(this IEnumerable<string>? enumerable, string part, bool ignoreCase = true)
     {
-        return enumerable.Any(str => str.Contains(part, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+        if (enumerable.IsNullOrEmpty() || part.IsNullOrEmpty())
+            return false;
+
+        StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+        // Pre-process part for case-insensitive search
+        string searchPart = ignoreCase ? part.ToUpperInvariantFast() : part;
+
+        foreach (string str in enumerable)
+        {
+            // Normalize string for case-insensitive comparison, if necessary
+            string currentStr = ignoreCase ? str.ToUpperInvariantFast() : str;
+
+            if (currentStr.Contains(searchPart, comparison))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
-    /// Equivalent to string.Join(",", enumerable).
+    /// Equivalent to string.Join(",", enumerable). Optimized to avoid creating intermediate strings.
     /// </summary>
     /// <typeparam name="T">The type of the enumerable</typeparam>
     /// <param name="enumerable">The enumerable to join</param>
@@ -59,7 +77,7 @@ public static class EnumerableStringExtension
         if (includeSpace)
             return string.Join(", ", enumerable);
 
-        return string.Join(",", enumerable);
+        return string.Join(',', enumerable);
     }
 
     /// <summary>
@@ -70,7 +88,10 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
     {
-        return enumerable.Select(str => str.ToLowerInvariant());
+        foreach (string str in enumerable)
+        {
+            yield return str.ToLowerInvariantFast();
+        }
     }
 
     /// <summary>
@@ -81,6 +102,9 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
     {
-        return enumerable.Select(str => str.ToUpperInvariant());
+        foreach (string str in enumerable)
+        {
+            yield return str.ToUpperInvariantFast();
+        }
     }
 }
