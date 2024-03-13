@@ -37,6 +37,6 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Soenneker.Extensions.Enumerable" Version="2.1.46" />
-        <PackageReference Include="Soenneker.Extensions.String" Version="2.1.125" />
+        <PackageReference Include="Soenneker.Extensions.String" Version="2.1.128" />
     </ItemGroup>
 </Project>
