@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\Soenneker.Extensions.Enumerable.String.csproj" />
+        <ProjectReference Include="..\..\src\Soenneker.Extensions.Enumerable.String.csproj" />
     </ItemGroup>
 
 </Project>
