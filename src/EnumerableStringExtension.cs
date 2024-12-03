@@ -122,7 +122,6 @@ public static class EnumerableStringExtension
     /// Thrown when the source collection is null.
     /// </exception>
     [Pure]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static HashSet<string> ToHashSetIgnoreCase(this IEnumerable<string> source)
     {
         return new HashSet<string>(source, StringComparer.OrdinalIgnoreCase);
