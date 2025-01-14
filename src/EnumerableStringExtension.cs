@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Text;
 using Soenneker.Extensions.String;
 
@@ -23,9 +24,11 @@ public static class EnumerableStringExtension
         var idsCollection = ids as ICollection<string>;
         var result = new List<(string PartitionKey, string DocumentId)>(idsCollection?.Count ?? 0);
 
-        foreach (string id in ids)
+        using IEnumerator<string> enumerator = ids.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            (string PartitionKey, string DocumentId) split = id.ToSplitId();
+            (string PartitionKey, string DocumentId) split = enumerator.Current.ToSplitId();
             result.Add(split);
         }
 
@@ -43,7 +46,7 @@ public static class EnumerableStringExtension
     public static bool ContainsAPart(this IEnumerable<string>? enumerable, string part, bool ignoreCase = true)
     {
         // Early exit for null or empty inputs
-        if (enumerable is null || string.IsNullOrEmpty(part))
+        if (enumerable is null || part.IsNullOrEmpty())
             return false;
 
         if (enumerable is ICollection<string> {Count: 0})
@@ -236,7 +239,7 @@ public static class EnumerableStringExtension
             string? current = enumerator.Current;
 
             // Skip null values and add unique items to the HashSet
-            if (current != null && seen.Add(current))
+            if (current is not null && seen.Add(current))
             {
                 yield return current;
             }
@@ -263,7 +266,7 @@ public static class EnumerableStringExtension
         {
             string current = enumerator.Current;
 
-            if (current != null && current.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            if (current is not null && current.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -292,7 +295,7 @@ public static class EnumerableStringExtension
         {
             string current = enumerator.Current;
 
-            if (current != null && current.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            if (current is not null && current.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -322,7 +325,7 @@ public static class EnumerableStringExtension
         {
             string current = enumerator.Current;
 
-            if (current != null && comparer.Equals(current, value))
+            if (current is not null && comparer.Equals(current, value))
             {
                 return true;
             }
