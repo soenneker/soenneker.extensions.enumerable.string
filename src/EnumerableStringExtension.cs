@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
+using System.Text;
 using Soenneker.Extensions.String;
 
 namespace Soenneker.Extensions.Enumerable.String;
@@ -17,14 +17,16 @@ public static class EnumerableStringExtension
     /// <param name="ids">The enumerable of string ids</param>
     /// <returns>A list of tuples containing the partition key and document id</returns>
     [Pure]
-    public static List<Tuple<string, string>> ToSplitIds(this IEnumerable<string> ids)
+    public static List<(string PartitionKey, string DocumentId)> ToSplitIds(this IEnumerable<string> ids)
     {
-        var result = new List<Tuple<string, string>>();
+        // Attempt to cast to a collection to pre-size the list if possible.
+        var idsCollection = ids as ICollection<string>;
+        var result = new List<(string PartitionKey, string DocumentId)>(idsCollection?.Count ?? 0);
 
         foreach (string id in ids)
         {
-            (string partitionKey, string documentId) = id.ToSplitId();
-            result.Add(new Tuple<string, string>(partitionKey, documentId));
+            (string PartitionKey, string DocumentId) split = id.ToSplitId();
+            result.Add(split);
         }
 
         return result;
@@ -40,20 +42,27 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool ContainsAPart(this IEnumerable<string>? enumerable, string part, bool ignoreCase = true)
     {
-        if (enumerable.IsNullOrEmpty() || part.IsNullOrEmpty())
+        // Early exit for null or empty inputs
+        if (enumerable is null || string.IsNullOrEmpty(part))
             return false;
 
-        StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (enumerable is ICollection<string> {Count: 0})
+            return false;
 
-        // Pre-process part for case-insensitive search
+        // Precompute the normalized part if case-insensitive
         string searchPart = ignoreCase ? part.ToUpperInvariantFast() : part;
 
-        foreach (string str in enumerable)
-        {
-            // Normalize string for case-insensitive comparison, if necessary
-            string currentStr = ignoreCase ? str.ToUpperInvariantFast() : str;
+        // Use enumerator for optimal performance over IEnumerable
+        using IEnumerator<string> enumerator = enumerable.GetEnumerator();
 
-            if (currentStr.Contains(searchPart, comparison))
+        while (enumerator.MoveNext())
+        {
+            string current = enumerator.Current;
+
+            // Normalize the current string only if case-insensitive comparison is required
+            string normalizedCurrent = ignoreCase ? current.ToUpperInvariantFast() : current;
+
+            if (normalizedCurrent.Contains(searchPart, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -72,14 +81,39 @@ public static class EnumerableStringExtension
     [Pure]
     public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false)
     {
-        if (enumerable == null)
+        // Handle null input quickly
+        if (enumerable is null)
             return "";
 
-        if (includeSpace)
-            return string.Join(", ", enumerable);
+        // Attempt to cast to ICollection for better performance with predictable sizing
+        if (enumerable is ICollection<T> {Count: 0})
+            return "";
 
-        return string.Join(',', enumerable);
+        // Use a separator depending on the flag
+        string separator = includeSpace ? ", " : ",";
+
+        // Create the StringBuilder with a reasonable initial capacity
+        const int defaultCapacity = 256;
+        var sb = new StringBuilder(defaultCapacity);
+
+        // Iterate through the enumerable and build the string
+        using IEnumerator<T> enumerator = enumerable.GetEnumerator();
+
+        if (enumerator.MoveNext())
+        {
+            // Append the first item without a separator
+            sb.Append(enumerator.Current);
+
+            // Append the remaining items with separators
+            while (enumerator.MoveNext())
+            {
+                sb.Append(separator).Append(enumerator.Current);
+            }
+        }
+
+        return sb.ToString();
     }
+
 
     /// <summary>
     /// Converts all strings in the enumerable to lowercase. Equivalent to <code>enumerable.Select(str => str.ToLowerInvariant()</code>
@@ -89,9 +123,11 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
     {
-        foreach (string str in enumerable)
+        using IEnumerator<string> enumerator = enumerable.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            yield return str.ToLowerInvariantFast();
+            yield return enumerator.Current.ToLowerInvariantFast();
         }
     }
 
@@ -103,9 +139,11 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
     {
-        foreach (string str in enumerable)
+        using IEnumerator<string> enumerator = enumerable.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            yield return str.ToUpperInvariantFast();
+            yield return enumerator.Current.ToUpperInvariantFast();
         }
     }
 
@@ -138,12 +176,15 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> RemoveNullOrEmpty(this IEnumerable<string> source)
     {
-        foreach (string item in source)
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            if (!item.IsNullOrEmpty())
-            {
-                yield return item;
-            }
+            string current = enumerator.Current;
+
+            // Check for null or empty using direct conditions for better performance
+            if (!current.IsNullOrEmpty())
+                yield return current;
         }
     }
 
@@ -158,12 +199,14 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> RemoveNullOrWhitespace(this IEnumerable<string> source)
     {
-        foreach (string item in source)
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            if (!item.IsNullOrWhiteSpace())
-            {
-                yield return item;
-            }
+            string current = enumerator.Current;
+
+            if (!current.IsNullOrWhiteSpace())
+                yield return current;
         }
     }
 
@@ -178,13 +221,24 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> DistinctIgnoreCase(this IEnumerable<string> source)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Attempt to cast to ICollection for better performance with predictable sizing
+        var collection = source as ICollection<string>;
+        int initialCapacity = collection?.Count ?? 0;
 
-        foreach (string item in source)
+        // Initialize the HashSet with the calculated capacity and a case-insensitive comparer
+        var seen = new HashSet<string>(initialCapacity, StringComparer.OrdinalIgnoreCase);
+
+        // Use an enumerator for precise control and efficient iteration
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            if (seen.Add(item))
+            string? current = enumerator.Current;
+
+            // Skip null values and add unique items to the HashSet
+            if (current != null && seen.Add(current))
             {
-                yield return item;
+                yield return current;
             }
         }
     }
@@ -203,10 +257,16 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool StartsWithIgnoreCase(this IEnumerable<string> source, string prefix)
     {
-        foreach (string item in source)
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            if (item.StartsWithIgnoreCase(prefix))
+            string current = enumerator.Current;
+
+            if (current != null && current.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -226,10 +286,16 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool EndsWithIgnoreCase(this IEnumerable<string> source, string suffix)
     {
-        foreach (string item in source)
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            if (item.EndsWithIgnoreCase(suffix))
+            string current = enumerator.Current;
+
+            if (current != null && current.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
                 return true;
+            }
         }
 
         return false;
@@ -251,10 +317,15 @@ public static class EnumerableStringExtension
     {
         StringComparer comparer = StringComparer.OrdinalIgnoreCase;
 
-        foreach (string item in source)
+        using IEnumerator<string> enumerator = source.GetEnumerator();
+        while (enumerator.MoveNext())
         {
-            if (comparer.Equals(item, value))
+            string current = enumerator.Current;
+
+            if (current != null && comparer.Equals(current, value))
+            {
                 return true;
+            }
         }
 
         return false;
