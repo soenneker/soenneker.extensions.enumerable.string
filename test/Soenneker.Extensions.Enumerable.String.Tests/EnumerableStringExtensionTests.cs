@@ -102,11 +102,11 @@ public class EnumerableStringExtensionTests : UnitTest
     }
 
     [Fact]
-    public void RemoveNullOrWhitespace_ShouldRemoveWhitespaceStrings()
+    public void RemoveNullOrWhiteSpace_ShouldRemoveWhiteSpaceStrings()
     {
         var input = new List<string> { "one", "  ", null, "two" };
 
-        IEnumerable<string> result = input.RemoveNullOrWhitespace();
+        IEnumerable<string> result = input.RemoveNullOrWhiteSpace();
 
         result.Should().BeEquivalentTo(new List<string> { "one", "two" });
     }

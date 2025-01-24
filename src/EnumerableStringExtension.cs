@@ -200,7 +200,7 @@ public static class EnumerableStringExtension
     /// Thrown when the source collection is null.
     /// </exception>
     [Pure]
-    public static IEnumerable<string> RemoveNullOrWhitespace(this IEnumerable<string> source)
+    public static IEnumerable<string> RemoveNullOrWhiteSpace(this IEnumerable<string> source)
     {
         using IEnumerator<string> enumerator = source.GetEnumerator();
 
