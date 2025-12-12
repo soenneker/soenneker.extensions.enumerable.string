@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Text;
@@ -190,7 +190,18 @@ public static class EnumerableStringExtension
         if (source is null)
             throw new ArgumentNullException(nameof(source));
 
-        return new HashSet<string>(source, StringComparer.OrdinalIgnoreCase);
+        // Pre-allocate capacity if available
+        int capacity = source is ICollection<string> collection ? collection.Count : 0;
+        var hashSet = capacity > 0 
+            ? new HashSet<string>(capacity, StringComparer.OrdinalIgnoreCase) 
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
+        foreach (string item in source)
+        {
+            hashSet.Add(item);
+        }
+        
+        return hashSet;
     }
 
     /// <summary>
