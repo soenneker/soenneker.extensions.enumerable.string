@@ -103,7 +103,7 @@ public static class EnumerableStringExtension
             psb.Append(item);
         }
 
-        return wroteAny ? psb.ToStringAndDispose() : string.Empty;
+        return wroteAny ? psb.ToString() : string.Empty;
     }
 
     /// <summary>
