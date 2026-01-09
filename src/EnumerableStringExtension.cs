@@ -82,36 +82,28 @@ public static class EnumerableStringExtension
         int count = enumerable.GetNonEnumeratedCount();
         int initialCapacity = count > 0 ? Math.Min(Math.Max(128, count * 4), 4096) : 128;
 
-        var psb = new PooledStringBuilder(initialCapacity);
+        using var psb = new PooledStringBuilder(initialCapacity);
         var wroteAny = false;
 
-        try
+        foreach (T item in enumerable)
         {
-            foreach (T item in enumerable)
+            if (wroteAny)
             {
-                if (wroteAny)
-                {
-                    if (includeSpace)
-                        psb.Append(separator, ' ');
-                    else
-                        psb.Append(separator);
-                }
+                if (includeSpace)
+                    psb.Append(separator, ' ');
                 else
-                {
-                    wroteAny = true;
-                }
-
-                // This hits your allocation-free generic Append<T>(T value) where T : ISpanFormattable
-                psb.Append(item);
+                    psb.Append(separator);
+            }
+            else
+            {
+                wroteAny = true;
             }
 
-            return wroteAny ? psb.ToStringAndDispose() : string.Empty;
+            // This hits your allocation-free generic Append<T>(T value) where T : ISpanFormattable
+            psb.Append(item);
         }
-        catch
-        {
-            psb.Dispose();
-            throw;
-        }
+
+        return wroteAny ? psb.ToStringAndDispose() : string.Empty;
     }
 
     /// <summary>
