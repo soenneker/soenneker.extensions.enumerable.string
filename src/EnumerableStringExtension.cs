@@ -3,38 +3,64 @@ using Soenneker.Utils.PooledStringBuilders;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Soenneker.Extensions.Enumerable.String;
 
 /// <summary>
-/// A collection of helpful enumerable string extension methods
+/// A collection of helpful enumerable string extension methods.
 /// </summary>
 public static class EnumerableStringExtension
 {
+    private const StringComparison _ord = StringComparison.Ordinal;
+    private const StringComparison _ordIgnore = StringComparison.OrdinalIgnoreCase;
+
     private static readonly StringComparer _ordinalIgnoreCase = StringComparer.OrdinalIgnoreCase;
 
     /// <summary>
-    /// Partition Key, Document Id
+    /// Converts each id into a (PartitionKey, DocumentId) tuple via <see cref="StringExtension.ToSplitId(string)"/>.
     /// </summary>
     [Pure]
     public static List<(string PartitionKey, string DocumentId)> ToSplitIds(this IEnumerable<string> ids)
     {
-        if (ids is null)
-            throw new ArgumentNullException(nameof(ids));
+        ArgumentNullException.ThrowIfNull(ids);
 
-        int capacity = ids.GetNonEnumeratedCount();
+        // Fast paths
+        if (ids is string[] arr)
+        {
+            var result = new List<(string PartitionKey, string DocumentId)>(arr.Length);
 
-        List<(string PartitionKey, string DocumentId)> result = capacity > 0 ? new List<(string PartitionKey, string DocumentId)>(capacity) : [];
+            for (int i = 0; i < arr.Length; i++)
+                result.Add(arr[i].ToSplitId());
+
+            return result;
+        }
+
+        if (ids is List<string> list)
+        {
+            var result = new List<(string PartitionKey, string DocumentId)>(list.Count);
+            Span<string> span = CollectionsMarshal.AsSpan(list);
+
+            for (int i = 0; i < span.Length; i++)
+                result.Add(span[i].ToSplitId());
+
+            return result;
+        }
+
+        // Single fallback (no duplicated foreach blocks)
+        int capacity = (ids.TryGetNonEnumeratedCount(out int count) && count > 0) ? count : 0;
+        var fallback = capacity > 0 ? new List<(string PartitionKey, string DocumentId)>(capacity) : [];
 
         foreach (string id in ids)
-            result.Add(id.ToSplitId());
+            fallback.Add(id.ToSplitId());
 
-        return result;
+        return fallback;
     }
 
     /// <summary>
-    /// Checks if any item in the enumerable contains a part of a string
+    /// Returns <c>true</c> if any element contains <paramref name="part"/> using ordinal comparisons.
     /// </summary>
     [Pure]
     public static bool ContainsAPart(this IEnumerable<string>? enumerable, string part, bool ignoreCase = true)
@@ -45,14 +71,56 @@ public static class EnumerableStringExtension
         if (enumerable is ICollection<string> { Count: 0 })
             return false;
 
-        StringComparison comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        StringComparison comparison = ignoreCase ? _ordIgnore : _ord;
+
+        // Collapse the branching: same perf characteristics, less duplication.
+        if (enumerable is string[] arr)
+            return ContainsAPart(arr, part, comparison);
+
+        if (enumerable is List<string> list)
+            return ContainsAPart(CollectionsMarshal.AsSpan(list), part, comparison);
+
+        if (enumerable is IList<string> ilist)
+        {
+            for (int i = 0; i < ilist.Count; i++)
+            {
+                string? current = ilist[i];
+                if (current is not null && current.IndexOf(part, comparison) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
 
         foreach (string? current in enumerable)
         {
-            if (current is null)
-                continue;
+            if (current is not null && current.IndexOf(part, comparison) >= 0)
+                return true;
+        }
 
-            if (current.IndexOf(part, comparison) >= 0)
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ContainsAPart(string[] arr, string part, StringComparison comparison)
+    {
+        for (int i = 0; i < arr.Length; i++)
+        {
+            string? current = arr[i];
+            if (current is not null && current.IndexOf(part, comparison) >= 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool ContainsAPart(ReadOnlySpan<string> span, string part, StringComparison comparison)
+    {
+        for (int i = 0; i < span.Length; i++)
+        {
+            string? current = span[i];
+            if (current is not null && current.IndexOf(part, comparison) >= 0)
                 return true;
         }
 
@@ -60,18 +128,20 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Equivalent to ToSeparatedString(',', includeSpace)
+    /// Equivalent to <see cref="ToSeparatedString{T}(IEnumerable{T}?, char, bool)"/> with a comma separator.
     /// </summary>
     [Pure]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false) =>
         enumerable.ToSeparatedString(',', includeSpace);
 
     /// <summary>
-    /// Fast-path join for value-types (and other types) that implement ISpanFormattable.
-    /// Avoids boxing that would occur via "item is ISpanFormattable" checks in the general method.
+    /// Fast-path join for <typeparamref name="T"/> that implements <see cref="ISpanFormattable"/>.
+    /// Avoids boxing that can occur in the unconstrained join overload.
     /// </summary>
     [Pure]
-    public static string ToSeparatedStringFormattable<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false) where T : ISpanFormattable
+    public static string ToSeparatedStringFormattable<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false)
+        where T : ISpanFormattable
     {
         if (enumerable is null)
             return string.Empty;
@@ -79,54 +149,20 @@ public static class EnumerableStringExtension
         if (enumerable is ICollection<T> { Count: 0 })
             return string.Empty;
 
-        int count = enumerable.GetNonEnumeratedCount();
-        int initialCapacity = count > 0 ? Math.Min(Math.Max(128, count * 4), 4096) : 128;
+        if (enumerable is T[] arr)
+            return JoinFormattables(arr, separator, includeSpace);
 
-        using var psb = new PooledStringBuilder(initialCapacity);
-        var wroteAny = false;
+        if (enumerable is List<T> list)
+            return JoinFormattables(CollectionsMarshal.AsSpan(list), separator, includeSpace);
 
-        foreach (T item in enumerable)
-        {
-            if (wroteAny)
-            {
-                if (includeSpace)
-                    psb.Append(separator, ' ');
-                else
-                    psb.Append(separator);
-            }
-            else
-            {
-                wroteAny = true;
-            }
-
-            // This hits your allocation-free generic Append<T>(T value) where T : ISpanFormattable
-            psb.Append(item);
-        }
-
-        return wroteAny ? psb.ToString() : string.Empty;
-    }
-
-    /// <summary>
-    /// Joins the elements of an enumerable into a single string, using the specified separator character
-    /// (and optionally a space after each separator). Returns an empty string if the input is null or empty.
-    /// </summary>
-    [Pure]
-    public static string ToSeparatedString<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false)
-    {
-        if (enumerable is null)
-            return string.Empty;
-
-        if (enumerable is ICollection<T> { Count: 0 })
-            return string.Empty;
-
-        int count = enumerable.GetNonEnumeratedCount();
-        int initialCapacity = count > 0 ? Math.Min(Math.Max(128, count * 4), 4096) : 128;
-
+        int initialCapacity = GetInitialJoinCapacity(enumerable);
         var psb = new PooledStringBuilder(initialCapacity);
-        var wroteAny = false;
+        bool disposed = false;
 
         try
         {
+            bool wroteAny = false;
+
             foreach (T item in enumerable)
             {
                 if (wroteAny)
@@ -141,67 +177,239 @@ public static class EnumerableStringExtension
                     wroteAny = true;
                 }
 
-                // Match string.Join behavior: null => empty.
+                psb.Append(item);
+            }
+
+            if (!wroteAny)
+            {
+                psb.Dispose();
+                disposed = true;
+                return string.Empty;
+            }
+
+            disposed = true;
+            return psb.ToStringAndDispose();
+        }
+        finally
+        {
+            if (!disposed)
+                psb.Dispose();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string JoinFormattables<T>(ReadOnlySpan<T> span, char separator, bool includeSpace)
+        where T : ISpanFormattable
+    {
+        if (span.Length == 0)
+            return string.Empty;
+
+        int initialCapacity = Math.Min(Math.Max(128, span.Length * 4), 4096);
+        var psb = new PooledStringBuilder(initialCapacity);
+        bool disposed = false;
+
+        try
+        {
+            psb.Append(span[0]);
+
+            for (int i = 1; i < span.Length; i++)
+            {
+                if (includeSpace)
+                    psb.Append(separator, ' ');
+                else
+                    psb.Append(separator);
+
+                psb.Append(span[i]);
+            }
+
+            disposed = true;
+            return psb.ToStringAndDispose();
+        }
+        finally
+        {
+            if (!disposed)
+                psb.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Joins the elements into a single string using <paramref name="separator"/> (optionally followed by a space).
+    /// Null items match <see cref="string.Join(string?, IEnumerable{string?})"/> semantics (treated as empty).
+    /// </summary>
+    [Pure]
+    public static string ToSeparatedString<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false)
+    {
+        if (enumerable is null)
+            return string.Empty;
+
+        if (enumerable is ICollection<T> { Count: 0 })
+            return string.Empty;
+
+        // Tight string fast-paths
+        if (typeof(T) == typeof(string))
+        {
+            // Only valid when no added-space; BCL join is extremely optimized.
+            if (!includeSpace && enumerable is IEnumerable<string?> s1)
+                return string.Join(separator, s1);
+
+            if (enumerable is string?[] arr)
+                return JoinStrings(arr, separator, includeSpace);
+
+            if (enumerable is List<string?> list)
+                return JoinStrings(CollectionsMarshal.AsSpan(list), separator, includeSpace);
+        }
+
+        int initialCapacity = GetInitialJoinCapacity(enumerable);
+        var psb = new PooledStringBuilder(initialCapacity);
+        bool disposed = false;
+
+        try
+        {
+            bool wroteAny = false;
+
+            foreach (T item in enumerable)
+            {
+                if (wroteAny)
+                {
+                    if (includeSpace)
+                        psb.Append(separator, ' ');
+                    else
+                        psb.Append(separator);
+                }
+                else
+                {
+                    wroteAny = true;
+                }
+
                 if (item is null)
                     continue;
 
-                // Fast paths
                 if (item is string s)
                 {
                     psb.Append(s);
                     continue;
                 }
 
-                // NOTE: For value-types T, this interface check boxes.
-                // Use ToSeparatedStringFormattable<T>() to avoid that.
+                // Note: for value-types, "is ISpanFormattable" boxes.
                 if (item is ISpanFormattable sf)
                 {
                     AppendFormattable(ref psb, sf);
                     continue;
                 }
 
-                // Fallback (may allocate depending on type)
                 psb.Append(item.ToString());
             }
 
-            return wroteAny ? psb.ToStringAndDispose() : string.Empty;
+            if (!wroteAny)
+            {
+                psb.Dispose();
+                disposed = true;
+                return string.Empty;
+            }
+
+            disposed = true;
+            return psb.ToStringAndDispose();
         }
-        catch
+        finally
         {
-            psb.Dispose();
-            throw;
+            if (!disposed)
+                psb.Dispose();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string JoinStrings(ReadOnlySpan<string?> span, char separator, bool includeSpace)
+    {
+        if (span.Length == 0)
+            return string.Empty;
+
+        int initialCapacity = Math.Min(Math.Max(128, span.Length * 4), 4096);
+        var psb = new PooledStringBuilder(initialCapacity);
+        bool disposed = false;
+
+        try
+        {
+            string? first = span[0];
+            if (first is not null)
+                psb.Append(first);
+
+            for (int i = 1; i < span.Length; i++)
+            {
+                if (includeSpace)
+                    psb.Append(separator, ' ');
+                else
+                    psb.Append(separator);
+
+                string? s = span[i];
+                if (s is not null)
+                    psb.Append(s);
+            }
+
+            disposed = true;
+            return psb.ToStringAndDispose();
+        }
+        finally
+        {
+            if (!disposed)
+                psb.Dispose();
         }
     }
 
     [Pure]
     public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
     {
-        if (enumerable is null)
-            throw new ArgumentNullException(nameof(enumerable));
+        ArgumentNullException.ThrowIfNull(enumerable);
 
-        foreach (string str in enumerable)
-            yield return str.ToLowerInvariantFast() ?? "";
+        foreach (string? str in enumerable)
+            yield return str?.ToLowerInvariantFast() ?? "";
     }
 
     [Pure]
     public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
     {
-        if (enumerable is null)
-            throw new ArgumentNullException(nameof(enumerable));
+        ArgumentNullException.ThrowIfNull(enumerable);
 
-        foreach (string str in enumerable)
-            yield return str.ToUpperInvariantFast() ?? "";
+        foreach (string? str in enumerable)
+            yield return str?.ToUpperInvariantFast() ?? "";
     }
 
     [Pure]
     public static HashSet<string> ToHashSetIgnoreCase(this IEnumerable<string> source)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
 
-        int capacity = source.GetNonEnumeratedCount();
+        if (source is HashSet<string> hs && ReferenceEquals(hs.Comparer, _ordinalIgnoreCase))
+            return new HashSet<string>(hs, _ordinalIgnoreCase);
 
-        HashSet<string> hashSet = capacity > 0 ? new HashSet<string>(capacity, _ordinalIgnoreCase) : new HashSet<string>(_ordinalIgnoreCase);
+        HashSet<string> hashSet =
+            source.TryGetNonEnumeratedCount(out int count) && count > 0
+                ? new HashSet<string>(count, _ordinalIgnoreCase)
+                : new HashSet<string>(_ordinalIgnoreCase);
+
+        if (source is string[] arr)
+        {
+            for (int i = 0; i < arr.Length; i++)
+                hashSet.Add(arr[i]);
+
+            return hashSet;
+        }
+
+        if (source is List<string> list)
+        {
+            Span<string> span = CollectionsMarshal.AsSpan(list);
+            for (int i = 0; i < span.Length; i++)
+                hashSet.Add(span[i]);
+
+            return hashSet;
+        }
+
+        if (source is IList<string> ilist)
+        {
+            for (int i = 0; i < ilist.Count; i++)
+                hashSet.Add(ilist[i]);
+
+            return hashSet;
+        }
 
         foreach (string item in source)
             hashSet.Add(item);
@@ -212,45 +420,77 @@ public static class EnumerableStringExtension
     [Pure]
     public static IEnumerable<string> RemoveNullOrEmpty(this IEnumerable<string> source)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
 
-        foreach (string str in source)
+        foreach (string? str in source)
         {
             if (str.HasContent())
-                yield return str;
+                yield return str!;
         }
     }
 
     [Pure]
     public static IEnumerable<string> RemoveNullOrWhiteSpace(this IEnumerable<string> source)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
 
-        foreach (string str in source)
+        foreach (string? str in source)
         {
             if (!string.IsNullOrWhiteSpace(str))
-                yield return str;
+                yield return str!;
         }
     }
 
     [Pure]
     public static IEnumerable<string> DistinctIgnoreCase(this IEnumerable<string> source)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
 
-        int capacity = source.GetNonEnumeratedCount();
+        HashSet<string> seen =
+            source.TryGetNonEnumeratedCount(out int count) && count > 0
+                ? new HashSet<string>(count, _ordinalIgnoreCase)
+                : new HashSet<string>(_ordinalIgnoreCase);
 
-        HashSet<string> seen = capacity > 0 ? new HashSet<string>(capacity, _ordinalIgnoreCase) : new HashSet<string>(_ordinalIgnoreCase);
+        if (source is string[] arr)
+        {
+            for (int i = 0; i < arr.Length; i++)
+            {
+                string? str = arr[i];
+                if (str is not null && seen.Add(str))
+                    yield return str;
+            }
+
+            yield break;
+        }
+
+        // IMPORTANT: iterator method -> no Span<T> locals allowed here
+        if (source is List<string> list)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                string? str = list[i];
+                if (str is not null && seen.Add(str))
+                    yield return str;
+            }
+
+            yield break;
+        }
+
+        if (source is IList<string> ilist)
+        {
+            for (int i = 0; i < ilist.Count; i++)
+            {
+                string? str = ilist[i];
+                if (str is not null && seen.Add(str))
+                    yield return str;
+            }
+
+            yield break;
+        }
 
         foreach (string? str in source)
         {
-            if (str is null)
-                continue;
-
-            if (seen.Add(str))
+            if (str is not null && seen.Add(str))
                 yield return str;
         }
     }
@@ -258,22 +498,47 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool StartsWithIgnoreCase(this IEnumerable<string> source, string prefix)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
-        if (prefix is null)
-            throw new ArgumentNullException(nameof(prefix));
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(prefix);
 
         if (prefix.Length == 0)
         {
             foreach (string? s in source)
                 if (s is not null)
                     return true;
+
+            return false;
+        }
+
+        if (source is string[] arr)
+        {
+            for (int i = 0; i < arr.Length; i++)
+            {
+                string? str = arr[i];
+                if (str is not null && str.StartsWith(prefix, _ordIgnore))
+                    return true;
+            }
+
+            return false;
+        }
+
+        if (source is List<string> list)
+        {
+            Span<string> span = CollectionsMarshal.AsSpan(list);
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                string? str = span[i];
+                if (str is not null && str.StartsWith(prefix, _ordIgnore))
+                    return true;
+            }
+
             return false;
         }
 
         foreach (string? str in source)
         {
-            if (str is not null && str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            if (str is not null && str.StartsWith(prefix, _ordIgnore))
                 return true;
         }
 
@@ -283,23 +548,47 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool EndsWithIgnoreCase(this IEnumerable<string> source, string suffix)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
-
-        if (suffix is null)
-            throw new ArgumentNullException(nameof(suffix));
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(suffix);
 
         if (suffix.Length == 0)
         {
             foreach (string? s in source)
                 if (s is not null)
                     return true;
+
+            return false;
+        }
+
+        if (source is string[] arr)
+        {
+            for (int i = 0; i < arr.Length; i++)
+            {
+                string? str = arr[i];
+                if (str is not null && str.EndsWith(suffix, _ordIgnore))
+                    return true;
+            }
+
+            return false;
+        }
+
+        if (source is List<string> list)
+        {
+            Span<string> span = CollectionsMarshal.AsSpan(list);
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                string? str = span[i];
+                if (str is not null && str.EndsWith(suffix, _ordIgnore))
+                    return true;
+            }
+
             return false;
         }
 
         foreach (string? str in source)
         {
-            if (str is not null && str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            if (str is not null && str.EndsWith(suffix, _ordIgnore))
                 return true;
         }
 
@@ -309,11 +598,49 @@ public static class EnumerableStringExtension
     [Pure]
     public static bool ContainsIgnoreCase(this IEnumerable<string> source, string value)
     {
-        if (source is null)
-            throw new ArgumentNullException(nameof(source));
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(value);
 
-        if (value is null)
-            throw new ArgumentNullException(nameof(value));
+        if (source is HashSet<string> hs && ReferenceEquals(hs.Comparer, _ordinalIgnoreCase))
+            return hs.Contains(value);
+
+        if (source is string[] arr)
+        {
+            for (int i = 0; i < arr.Length; i++)
+            {
+                string? str = arr[i];
+                if (str is not null && _ordinalIgnoreCase.Equals(str, value))
+                    return true;
+            }
+
+            return false;
+        }
+
+        if (source is List<string> list)
+        {
+            Span<string> span = CollectionsMarshal.AsSpan(list);
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                string? str = span[i];
+                if (str is not null && _ordinalIgnoreCase.Equals(str, value))
+                    return true;
+            }
+
+            return false;
+        }
+
+        if (source is IList<string> ilist)
+        {
+            for (int i = 0; i < ilist.Count; i++)
+            {
+                string? str = ilist[i];
+                if (str is not null && _ordinalIgnoreCase.Equals(str, value))
+                    return true;
+            }
+
+            return false;
+        }
 
         foreach (string? str in source)
         {
@@ -325,10 +652,22 @@ public static class EnumerableStringExtension
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AppendFormattable(ref PooledStringBuilder psb, ISpanFormattable value, ReadOnlySpan<char> format = default,
+    private static int GetInitialJoinCapacity<T>(IEnumerable<T> enumerable)
+    {
+        if (enumerable.TryGetNonEnumeratedCount(out int count) && count > 0)
+            return Math.Min(Math.Max(128, count * 4), 4096);
+
+        return 128;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AppendFormattable(
+        ref PooledStringBuilder psb,
+        ISpanFormattable value,
+        ReadOnlySpan<char> format = default,
         IFormatProvider? provider = null)
     {
-        var hint = 32;
+        int hint = 32;
 
         while (true)
         {
@@ -341,6 +680,13 @@ public static class EnumerableStringExtension
             }
 
             psb.Shrink(hint);
+
+            if (hint >= (1 << 20))
+            {
+                psb.Append(value.ToString());
+                return;
+            }
+
             hint <<= 1;
         }
     }
