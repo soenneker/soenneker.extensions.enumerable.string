@@ -6,6 +6,7 @@ using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Soenneker.Extensions.Spans.ReadOnly.Strings;
 
 namespace Soenneker.Extensions.Enumerable.String;
 
@@ -75,10 +76,10 @@ public static class EnumerableStringExtension
 
         // Collapse the branching: same perf characteristics, less duplication.
         if (enumerable is string[] arr)
-            return ContainsAPart(arr, part, comparison);
+            return ReadOnlySpanStringExtension.ContainsAPart(arr, part, comparison);
 
         if (enumerable is List<string> list)
-            return ContainsAPart(CollectionsMarshal.AsSpan(list), part, comparison);
+            return ReadOnlySpanStringExtension.ContainsAPart(CollectionsMarshal.AsSpan(list), part, comparison);
 
         if (enumerable is IList<string> ilist)
         {
@@ -101,39 +102,85 @@ public static class EnumerableStringExtension
         return false;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ContainsAPart(string[] arr, string part, StringComparison comparison)
-    {
-        for (int i = 0; i < arr.Length; i++)
-        {
-            string? current = arr[i];
-            if (current is not null && current.IndexOf(part, comparison) >= 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ContainsAPart(ReadOnlySpan<string> span, string part, StringComparison comparison)
-    {
-        for (int i = 0; i < span.Length; i++)
-        {
-            string? current = span[i];
-            if (current is not null && current.IndexOf(part, comparison) >= 0)
-                return true;
-        }
-
-        return false;
-    }
-
     /// <summary>
     /// Equivalent to <see cref="ToSeparatedString{T}(IEnumerable{T}?, char, bool)"/> with a comma separator.
     /// </summary>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false) =>
-        enumerable.ToSeparatedString(',', includeSpace);
+    public static string ToCommaSeparatedString<T>(
+        this IEnumerable<T>? enumerable,
+        bool includeSpace = false)
+    {
+        if (enumerable is null)
+            return string.Empty;
+
+        // Fast-path: ICollection<T> -> let string.Join do the heavy lifting (usually fastest)
+        if (enumerable is ICollection<T> collection)
+        {
+            int count = collection.Count;
+
+            if (count == 0)
+                return string.Empty;
+
+            if (count == 1)
+            {
+                using var e = collection.GetEnumerator();
+                e.MoveNext();
+                return e.Current?.ToString() ?? string.Empty;
+            }
+
+            return string.Join(includeSpace ? ", " : ",", collection);
+        }
+
+        // Fast-path: IReadOnlyCollection<T> (count only)
+        if (enumerable is IReadOnlyCollection<T> readOnly)
+        {
+            int count = readOnly.Count;
+
+            if (count == 0)
+                return string.Empty;
+
+            if (count == 1)
+            {
+                using var e = enumerable.GetEnumerator();
+                e.MoveNext();
+                return e.Current?.ToString() ?? string.Empty;
+            }
+        }
+
+        // Fallback: unknown enumerable -> pooled builder
+        using IEnumerator<T> enumerator = enumerable.GetEnumerator();
+
+        if (!enumerator.MoveNext())
+            return string.Empty;
+
+        T first = enumerator.Current;
+
+        if (!enumerator.MoveNext())
+            return first?.ToString() ?? string.Empty;
+
+        using var psb = new PooledStringBuilder();
+
+        psb.Append(first as string ?? first?.ToString());
+
+        // We already know there's at least one more item in enumerator.Current right now
+        while (true)
+        {
+            psb.Append(',');
+
+            if (includeSpace)
+                psb.Append(' ');
+
+            // enumerator.Current is already the "next" item at loop start
+            var current = enumerator.Current;
+            psb.Append(current as string ?? current?.ToString());
+
+            if (!enumerator.MoveNext())
+                break;
+        }
+
+        return psb.ToString();
+    }
 
     /// <summary>
     /// Fast-path join for <typeparamref name="T"/> that implements <see cref="ISpanFormattable"/>.
@@ -205,31 +252,22 @@ public static class EnumerableStringExtension
             return string.Empty;
 
         int initialCapacity = Math.Min(Math.Max(128, span.Length * 4), 4096);
-        var psb = new PooledStringBuilder(initialCapacity);
-        bool disposed = false;
+        using var psb = new PooledStringBuilder(initialCapacity);
 
-        try
+        psb.Append(span[0]);
+
+        for (int i = 1; i < span.Length; i++)
         {
-            psb.Append(span[0]);
+            if (includeSpace)
+                psb.Append(separator, ' ');
+            else
+                psb.Append(separator);
 
-            for (int i = 1; i < span.Length; i++)
-            {
-                if (includeSpace)
-                    psb.Append(separator, ' ');
-                else
-                    psb.Append(separator);
-
-                psb.Append(span[i]);
-            }
-
-            disposed = true;
-            return psb.ToStringAndDispose();
+            psb.Append(span[i]);
         }
-        finally
-        {
-            if (!disposed)
-                psb.Dispose();
-        }
+
+        return psb.ToString();
+
     }
 
     /// <summary>
@@ -253,10 +291,10 @@ public static class EnumerableStringExtension
                 return string.Join(separator, s1);
 
             if (enumerable is string?[] arr)
-                return JoinStrings(arr, separator, includeSpace);
+                return ReadOnlySpanStringExtension.JoinStrings(arr, separator, includeSpace);
 
             if (enumerable is List<string?> list)
-                return JoinStrings(CollectionsMarshal.AsSpan(list), separator, includeSpace);
+                return ReadOnlySpanStringExtension.JoinStrings(CollectionsMarshal.AsSpan(list), separator, includeSpace);
         }
 
         int initialCapacity = GetInitialJoinCapacity(enumerable);
@@ -305,44 +343,6 @@ public static class EnumerableStringExtension
                 psb.Dispose();
                 disposed = true;
                 return string.Empty;
-            }
-
-            disposed = true;
-            return psb.ToStringAndDispose();
-        }
-        finally
-        {
-            if (!disposed)
-                psb.Dispose();
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static string JoinStrings(ReadOnlySpan<string?> span, char separator, bool includeSpace)
-    {
-        if (span.Length == 0)
-            return string.Empty;
-
-        int initialCapacity = Math.Min(Math.Max(128, span.Length * 4), 4096);
-        var psb = new PooledStringBuilder(initialCapacity);
-        bool disposed = false;
-
-        try
-        {
-            string? first = span[0];
-            if (first is not null)
-                psb.Append(first);
-
-            for (int i = 1; i < span.Length; i++)
-            {
-                if (includeSpace)
-                    psb.Append(separator, ' ');
-                else
-                    psb.Append(separator);
-
-                string? s = span[i];
-                if (s is not null)
-                    psb.Append(s);
             }
 
             disposed = true;
