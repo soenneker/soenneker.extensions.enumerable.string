@@ -45,6 +45,5 @@
         <PackageReference Include="Soenneker.Extensions.Enumerable" Version="4.0.594" />
         <PackageReference Include="Soenneker.Extensions.Spans.ReadOnly.Strings" Version="4.0.4" />
         <PackageReference Include="Soenneker.Extensions.String" Version="4.0.604" />
-        <PackageReference Include="Soenneker.Utils.PooledStringBuilders" Version="4.0.10" />
     </ItemGroup>
 </Project>
