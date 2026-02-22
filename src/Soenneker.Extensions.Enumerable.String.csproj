@@ -43,7 +43,7 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Extensions.Enumerable" Version="4.0.594" />
-        <PackageReference Include="Soenneker.Extensions.Spans.ReadOnly.Strings" Version="4.0.4" />
+        <PackageReference Include="Soenneker.Extensions.Spans.ReadOnly.Strings" Version="4.0.5" />
         <PackageReference Include="Soenneker.Extensions.String" Version="4.0.607" />
     </ItemGroup>
 </Project>
