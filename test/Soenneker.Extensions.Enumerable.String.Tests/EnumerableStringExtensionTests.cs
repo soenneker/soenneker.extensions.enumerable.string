@@ -1,13 +1,12 @@
 using AwesomeAssertions;
 using Soenneker.Tests.Unit;
 using System.Collections.Generic;
-using Xunit;
 
 namespace Soenneker.Extensions.Enumerable.String.Tests;
 
 public class EnumerableStringExtensionTests : UnitTest
 {
-    [Fact]
+    [Test]
     public void ToSplitIds_ShouldSplitIdsCorrectly()
     {
         var input = new List<string> { "PartitionKey:DocumentId", "Key:Id" };
@@ -21,7 +20,7 @@ public class EnumerableStringExtensionTests : UnitTest
             });
     }
 
-    [Fact]
+    [Test]
     public void ContainsAPart_ShouldReturnTrueWhenPartIsFound()
     {
         var input = new List<string> { "hello world", "test string", "sample" };
@@ -31,7 +30,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void ContainsAPart_ShouldReturnFalseWhenPartIsNotFound()
     {
         var input = new List<string> { "hello world", "sample" };
@@ -41,7 +40,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void ToCommaSeparatedString_ShouldHandleSpacesCorrectly()
     {
         var input = new List<string> { "one", "two", "three" };
@@ -51,7 +50,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().Be("one, two, three");
     }
 
-    [Fact]
+    [Test]
     public void ToCommaSeparatedString_ShouldHandleNoSpacesCorrectly()
     {
         var input = new List<string> { "one", "two", "three" };
@@ -61,7 +60,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().Be("one,two,three");
     }
 
-    [Fact]
+    [Test]
     public void ToLower_ShouldConvertAllStringsToLowercase()
     {
         var input = new List<string> { "ONE", "Two", "three" };
@@ -71,7 +70,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new List<string> { "one", "two", "three" });
     }
 
-    [Fact]
+    [Test]
     public void ToUpper_ShouldConvertAllStringsToUppercase()
     {
         var input = new List<string> { "one", "Two", "three" };
@@ -81,7 +80,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new List<string> { "ONE", "TWO", "THREE" });
     }
 
-    [Fact]
+    [Test]
     public void ToHashSetIgnoreCase_ShouldCreateCaseInsensitiveHashSet()
     {
         var input = new List<string> { "Hello", "hello", "WORLD", "world" };
@@ -91,7 +90,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new HashSet<string> { "Hello", "WORLD" });
     }
 
-    [Fact]
+    [Test]
     public void RemoveNullOrEmpty_ShouldRemoveEmptyStrings()
     {
         var input = new List<string> { "one", "", null, "two" };
@@ -101,7 +100,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new List<string> { "one", "two" });
     }
 
-    [Fact]
+    [Test]
     public void RemoveNullOrWhiteSpace_ShouldRemoveWhiteSpaceStrings()
     {
         var input = new List<string> { "one", "  ", null, "two" };
@@ -111,7 +110,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new List<string> { "one", "two" });
     }
 
-    [Fact]
+    [Test]
     public void DistinctIgnoreCase_ShouldReturnDistinctStringsIgnoringCase()
     {
         var input = new List<string> { "one", "One", "TWO", "two", "three" };
@@ -121,7 +120,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeEquivalentTo(new List<string> { "one", "TWO", "three" });
     }
 
-    [Fact]
+    [Test]
     public void StartsWithIgnoreCase_ShouldReturnTrueWhenPrefixMatches()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
@@ -131,7 +130,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void StartsWithIgnoreCase_ShouldReturnFalseWhenPrefixDoesNotMatch()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
@@ -141,7 +140,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void EndsWithIgnoreCase_ShouldReturnTrueWhenSuffixMatches()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
@@ -151,7 +150,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void EndsWithIgnoreCase_ShouldReturnFalseWhenSuffixDoesNotMatch()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
@@ -161,7 +160,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void ContainsIgnoreCase_ShouldReturnTrueWhenValueMatches()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
@@ -171,7 +170,7 @@ public class EnumerableStringExtensionTests : UnitTest
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void ContainsIgnoreCase_ShouldReturnFalseWhenValueDoesNotMatch()
     {
         var input = new List<string> { "apple", "banana", "cherry" };
