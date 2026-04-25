@@ -424,6 +424,9 @@ public static class EnumerableStringExtension
         return ExceptNullOrEmpty(source);
     }
 
+    /// <summary>
+    /// Removes null or empty strings from the <paramref name="source"/>.
+    /// </summary>
     [Pure]
     public static IEnumerable<string> ExceptNullOrEmpty(this IEnumerable<string?> source)
     {
@@ -443,6 +446,9 @@ public static class EnumerableStringExtension
         return ExceptNullOrWhiteSpace(source);
     }
 
+    /// <summary>
+    /// Removes null or white space strings from the <paramref name="source"/>.
+    /// </summary>
     [Pure]
     public static IEnumerable<string> ExceptNullOrWhiteSpace(this IEnumerable<string?> source)
     {
