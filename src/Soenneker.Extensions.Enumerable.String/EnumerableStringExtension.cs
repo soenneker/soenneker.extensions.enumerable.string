@@ -418,7 +418,17 @@ public static class EnumerableStringExtension
     }
 
     [Pure]
+    [Obsolete("Use ExceptNullOrEmpty instead")]
     public static IEnumerable<string> RemoveNullOrEmpty(this IEnumerable<string> source)
+    {
+        return ExceptNullOrEmpty(source);
+    }
+
+    /// <summary>
+    /// Removes null or empty strings from the <paramref name="source"/>.
+    /// </summary>
+    [Pure]
+    public static IEnumerable<string> ExceptNullOrEmpty(this IEnumerable<string?> source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -430,7 +440,17 @@ public static class EnumerableStringExtension
     }
 
     [Pure]
+    [Obsolete("Use ExceptNullOrWhiteSpace instead")]
     public static IEnumerable<string> RemoveNullOrWhiteSpace(this IEnumerable<string> source)
+    {
+        return ExceptNullOrWhiteSpace(source);
+    }
+
+    /// <summary>
+    /// Removes null or white space strings from the <paramref name="source"/>.
+    /// </summary>
+    [Pure]
+    public static IEnumerable<string> ExceptNullOrWhiteSpace(this IEnumerable<string?> source)
     {
         ArgumentNullException.ThrowIfNull(source);
 

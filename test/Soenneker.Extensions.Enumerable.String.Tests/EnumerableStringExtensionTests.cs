@@ -101,11 +101,31 @@ public class EnumerableStringExtensionTests : UnitTest
     }
 
     [Test]
+    public void ExceptNullOrEmpty_ShouldRemoveEmptyStrings()
+    {
+        var input = new List<string?> { "one", "", null, "two" };
+
+        IEnumerable<string> result = input.ExceptNullOrEmpty();
+
+        result.Should().BeEquivalentTo(new List<string> { "one", "two" });
+    }
+
+    [Test]
     public void RemoveNullOrWhiteSpace_ShouldRemoveWhiteSpaceStrings()
     {
         var input = new List<string> { "one", "  ", null, "two" };
 
         IEnumerable<string> result = input.RemoveNullOrWhiteSpace();
+
+        result.Should().BeEquivalentTo(new List<string> { "one", "two" });
+    }
+
+    [Test]
+    public void ExceptNullOrWhiteSpace_ShouldRemoveWhiteSpaceStrings()
+    {
+        var input = new List<string?> { "one", "  ", null, "two" };
+
+        IEnumerable<string> result = input.ExceptNullOrWhiteSpace();
 
         result.Should().BeEquivalentTo(new List<string> { "one", "two" });
     }
