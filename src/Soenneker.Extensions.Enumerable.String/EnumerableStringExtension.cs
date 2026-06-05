@@ -270,6 +270,11 @@ public static class EnumerableStringExtension
         }
     }
 
+    /// <summary>
+    /// Executes the to lower operation.
+    /// </summary>
+    /// <param name="enumerable">The enumerable.</param>
+    /// <returns>The result of the operation.</returns>
     [Pure]
     public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
     {
@@ -279,6 +284,11 @@ public static class EnumerableStringExtension
             yield return str?.ToLowerInvariantFast() ?? "";
     }
 
+    /// <summary>
+    /// Executes the to upper operation.
+    /// </summary>
+    /// <param name="enumerable">The enumerable.</param>
+    /// <returns>The result of the operation.</returns>
     [Pure]
     public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
     {
@@ -288,6 +298,11 @@ public static class EnumerableStringExtension
             yield return str?.ToUpperInvariantFast() ?? "";
     }
 
+    /// <summary>
+    /// Executes the to hash set ignore case operation.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <returns>The result of the operation.</returns>
     [Pure]
     public static HashSet<string> ToHashSetIgnoreCase(this IEnumerable<string> source)
     {
@@ -357,6 +372,11 @@ public static class EnumerableStringExtension
         }
     }
 
+    /// <summary>
+    /// Executes the distinct ignore case operation.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <returns>The result of the operation.</returns>
     [Pure]
     public static IEnumerable<string> DistinctIgnoreCase(this IEnumerable<string> source)
     {
@@ -398,6 +418,12 @@ public static class EnumerableStringExtension
         }
     }
 
+    /// <summary>
+    /// Executes the starts with ignore case operation.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <param name="prefix">The prefix.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     public static bool StartsWithIgnoreCase(this IEnumerable<string> source, string prefix)
     {
@@ -448,6 +474,12 @@ public static class EnumerableStringExtension
         return false;
     }
 
+    /// <summary>
+    /// Executes the ends with ignore case operation.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <param name="suffix">The suffix.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     public static bool EndsWithIgnoreCase(this IEnumerable<string> source, string suffix)
     {
@@ -498,6 +530,12 @@ public static class EnumerableStringExtension
         return false;
     }
 
+    /// <summary>
+    /// Executes the contains ignore case operation.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <param name="value">The value.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     public static bool ContainsIgnoreCase(this IEnumerable<string> source, string value)
     {
