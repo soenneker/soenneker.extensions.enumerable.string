@@ -23,6 +23,7 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Converts each id into a (PartitionKey, DocumentId) tuple via <see cref="StringExtension.ToSplitId(string)"/>.
     /// </summary>
+    /// <returns>Converts each id into a (PartitionKey, DocumentId) tuple via <see cref="StringExtension.ToSplitId(string)"/>.</returns>
     [Pure]
     public static List<(string PartitionKey, string DocumentId)> ToSplitIds(this IEnumerable<string> ids)
     {
@@ -63,6 +64,7 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Returns <c>true</c> if any element contains <paramref name="part"/> using ordinal comparisons.
     /// </summary>
+    /// <returns><c>true</c> if any element contains <paramref name="part"/> using ordinal comparisons.</returns>
     [Pure]
     public static bool ContainsAPart(this IEnumerable<string>? enumerable, string part, bool ignoreCase = true)
     {
@@ -93,6 +95,7 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Equivalent to <see cref="ToSeparatedString{T}(IEnumerable{T}?, char, bool)"/> with a comma separator.
     /// </summary>
+    /// <returns>A value equivalent to <see cref="ToSeparatedString{T}(IEnumerable{T}?, char, bool)"/> with a comma separator.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string ToCommaSeparatedString<T>(this IEnumerable<T>? enumerable, bool includeSpace = false)
@@ -104,6 +107,7 @@ public static class EnumerableStringExtension
     /// Fast-path join for <typeparamref name="T"/> that implements <see cref="ISpanFormattable"/>.
     /// Avoids boxing that can occur in the unconstrained join overload.
     /// </summary>
+    /// <returns>Fast-path join for <typeparamref name="T"/> that implements <see cref="ISpanFormattable"/>. Avoids boxing that can occur in the unconstrained join overload.</returns>
     [Pure]
     public static string ToSeparatedStringFormattable<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false) where T : ISpanFormattable
     {
@@ -189,6 +193,7 @@ public static class EnumerableStringExtension
     /// Joins the elements into a single string using <paramref name="separator"/> (optionally followed by a space).
     /// Null items match <see cref="string.Join(string?, IEnumerable{string?})"/> semantics (treated as empty).
     /// </summary>
+    /// <returns>Joins the elements into a single string using <paramref name="separator"/> (optionally followed by a space). Null items match <see cref="string.Join(string?, IEnumerable{string?})"/> semantics (treated as empty).</returns>
     [Pure]
     public static string ToSeparatedString<T>(this IEnumerable<T>? enumerable, char separator, bool includeSpace = false)
     {
@@ -271,10 +276,10 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the to lower operation.
+    /// Lazily converts each string in the sequence to lowercase.
     /// </summary>
-    /// <param name="enumerable">The enumerable.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="enumerable">The strings to convert.</param>
+    /// <returns>A lazy sequence of lowercase strings.</returns>
     [Pure]
     public static IEnumerable<string> ToLower(this IEnumerable<string> enumerable)
     {
@@ -285,10 +290,10 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the to upper operation.
+    /// Lazily converts each string in the sequence to uppercase.
     /// </summary>
-    /// <param name="enumerable">The enumerable.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="enumerable">The strings to convert.</param>
+    /// <returns>A lazy sequence of uppercase strings.</returns>
     [Pure]
     public static IEnumerable<string> ToUpper(this IEnumerable<string> enumerable)
     {
@@ -299,10 +304,10 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the to hash set ignore case operation.
+    /// Materializes the sequence into an ordinal, case-insensitive hash set.
     /// </summary>
-    /// <param name="source">The source.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="source">The source sequence or query.</param>
+    /// <returns>An ordinal, case-insensitive set.</returns>
     [Pure]
     public static HashSet<string> ToHashSetIgnoreCase(this IEnumerable<string> source)
     {
@@ -345,6 +350,7 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Removes null or empty strings from the <paramref name="source"/>.
     /// </summary>
+    /// <returns>Removes null or empty strings from the <paramref name="source"/>.</returns>
     [Pure]
     public static IEnumerable<string> ExceptNullOrEmpty(this IEnumerable<string?> source)
     {
@@ -360,6 +366,7 @@ public static class EnumerableStringExtension
     /// <summary>
     /// Removes null or white space strings from the <paramref name="source"/>.
     /// </summary>
+    /// <returns>Removes null or white space strings from the <paramref name="source"/>.</returns>
     [Pure]
     public static IEnumerable<string> ExceptNullOrWhiteSpace(this IEnumerable<string?> source)
     {
@@ -373,10 +380,10 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the distinct ignore case operation.
+    /// Lazily removes duplicate strings using ordinal, case-insensitive comparison.
     /// </summary>
-    /// <param name="source">The source.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="source">The source sequence or query.</param>
+    /// <returns>A sequence containing the first occurrence of each case-insensitive value.</returns>
     [Pure]
     public static IEnumerable<string> DistinctIgnoreCase(this IEnumerable<string> source)
     {
@@ -419,11 +426,11 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the starts with ignore case operation.
+    /// Determines whether any string in the sequence starts with the supplied prefix, ignoring case.
     /// </summary>
-    /// <param name="source">The source.</param>
-    /// <param name="prefix">The prefix.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="source">The source sequence or query.</param>
+    /// <param name="prefix">The prefix to test.</param>
+    /// <returns>True when at least one element starts with the prefix.</returns>
     [Pure]
     public static bool StartsWithIgnoreCase(this IEnumerable<string> source, string prefix)
     {
@@ -475,11 +482,11 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the ends with ignore case operation.
+    /// Determines whether any string in the sequence ends with the supplied suffix, ignoring case.
     /// </summary>
-    /// <param name="source">The source.</param>
-    /// <param name="suffix">The suffix.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="source">The source sequence or query.</param>
+    /// <param name="suffix">The suffix to test.</param>
+    /// <returns>True when at least one element ends with the suffix.</returns>
     [Pure]
     public static bool EndsWithIgnoreCase(this IEnumerable<string> source, string suffix)
     {
@@ -531,11 +538,11 @@ public static class EnumerableStringExtension
     }
 
     /// <summary>
-    /// Executes the contains ignore case operation.
+    /// Determines whether the sequence contains the supplied string using case-insensitive comparison.
     /// </summary>
-    /// <param name="source">The source.</param>
-    /// <param name="value">The value.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="source">The source sequence or query.</param>
+    /// <param name="value">The string to locate.</param>
+    /// <returns>True when a case-insensitive match is present.</returns>
     [Pure]
     public static bool ContainsIgnoreCase(this IEnumerable<string> source, string value)
     {
