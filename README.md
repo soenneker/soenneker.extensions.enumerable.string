@@ -4,7 +4,8 @@
 [![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.extensions.enumerable.string/codeql.yml?label=CodeQL&style=for-the-badge)](https://github.com/soenneker/soenneker.extensions.enumerable.string/actions/workflows/codeql.yml)
 
 # ![](https://user-images.githubusercontent.com/4441470/224455560-91ed3ee7-f510-4041-a8d2-3fc093025112.png) Soenneker.Extensions.Enumerable.String
-A collection of helpful enumerable string extension methods.
+
+Joining, filtering, case-insensitive searching, casing, deduplication, and compound-ID projection extensions for string sequences.
 
 ## Installation
 
@@ -12,28 +13,64 @@ A collection of helpful enumerable string extension methods.
 dotnet add package Soenneker.Extensions.Enumerable.String
 ```
 
-## Quick start
+## Join values
 
 ```csharp
 using Soenneker.Extensions.Enumerable.String;
 
-// Given an existing IEnumerable<string>? named enumerable:
-var result = enumerable.ContainsAPart(part);
+string csv = new[] { "red", "green", "blue" }
+    .ToCommaSeparatedString(includeSpace: true);
+// red, green, blue
+
+string path = new[] { "api", "customers", "42" }
+    .ToSeparatedString('/');
+// api/customers/42
 ```
 
-## Common operations
+Both methods return an empty string for a null or empty source. A null item is represented as an empty field, so `new[] { "a", null, "b" }` joined with commas becomes `a,,b`. Joining is immediate and visits the source once.
 
-- `ContainsAPart()` - Returns `true` if any element contains `part` using ordinal comparisons.
-- `ToCommaSeparatedString()` - Joins the values with commas and optionally spaces; null or empty input produces an empty string.
-- `ToSeparatedStringFormattable()` - Fast-path join for `T` that implements `ISpanFormattable`. Avoids boxing that can occur in the unconstrained join overload.
-- `ToSeparatedString()` - Joins the elements into a single string using `separator` (optionally followed by a space). Null items match `string.Join(string?, IEnumerablestring?)` semantics (treated as empty).
-- `ToLower()` - Lazily projects every string to lowercase; enumeration performs the conversions.
-- `ToUpper()` - Lazily projects every string to uppercase; enumeration performs the conversions.
-- `ToHashSetIgnoreCase()` - Materializes a case-insensitive `HashSet<string>`, so casing-only duplicates collapse.
-- `ExceptNullOrEmpty()` - Removes null or empty strings from the `source`.
-- `ExceptNullOrWhiteSpace()` - Removes null or white space strings from the `source`.
-- `DistinctIgnoreCase()` - Returns a lazy sequence with casing-only duplicates removed, preserving the first encountered value.
-- `StartsWithIgnoreCase()` - Returns `true` when any string starts with the prefix using a case-insensitive comparison.
-- `EndsWithIgnoreCase()` - Returns `true` when any string ends with the suffix using a case-insensitive comparison.
+`ToSeparatedStringFormattable()` is the allocation-conscious overload for value types implementing `ISpanFormattable`; it avoids the boxing that the unconstrained overload can require. Formatting uses the type’s default format with a null format provider.
 
-The package also includes one additional operation for more specialized cases.
+## Search strings
+
+```csharp
+string[] names = ["Alpha", "Beta"];
+
+names.ContainsAPart("PH");         // true; ignores case by default
+names.ContainsAPart("PH", false);  // false; ordinal, case-sensitive
+names.ContainsIgnoreCase("alpha"); // true
+names.StartsWithIgnoreCase("al");  // true
+names.EndsWithIgnoreCase("TA");    // true
+```
+
+Searches are ordinal, skip null elements, stop at the first match, and do not allocate normalized copies. `ContainsAPart()` returns `false` for a null source or null/empty search text. The other search methods require non-null source and search arguments. An empty prefix or suffix matches when the sequence contains at least one non-null string.
+
+## Filter, normalize, and deduplicate
+
+```csharp
+IEnumerable<string?> optionalValues = ["Alpha", null, " ", "alpha"];
+IEnumerable<string> nonEmpty = optionalValues.ExceptNullOrEmpty();
+IEnumerable<string> nonBlank = optionalValues.ExceptNullOrWhiteSpace();
+
+IEnumerable<string> values = nonBlank;
+IEnumerable<string> lower = values.ToLower();
+IEnumerable<string> distinct = values.DistinctIgnoreCase();
+HashSet<string> set = values.ToHashSetIgnoreCase();
+```
+
+These sequence-returning operations are lazy except `ToHashSetIgnoreCase()`, which materializes a new ordinal case-insensitive set. `ExceptNullOrEmpty()` preserves whitespace-only strings; `ExceptNullOrWhiteSpace()` removes them. `ToLower()` and `ToUpper()` use invariant casing and turn null elements into empty strings. `DistinctIgnoreCase()` skips nulls, keeps the first casing encountered, and preserves order.
+
+## Split compound IDs
+
+```csharp
+List<(string PartitionKey, string DocumentId)> ids = new[]
+{
+    "customer-42:order-100",
+    "standalone"
+}.ToSplitIds();
+
+// ("customer-42", "order-100")
+// ("standalone", "standalone")
+```
+
+Each ID is split at its last colon, so earlier colons remain part of a compound partition key. The result is immediately materialized in source order. Null or empty IDs are rejected by the underlying split operation.
