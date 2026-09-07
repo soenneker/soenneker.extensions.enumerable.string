@@ -437,15 +437,6 @@ public static class EnumerableStringExtension
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(prefix);
 
-        if (prefix.Length == 0)
-        {
-            foreach (string? s in source)
-                if (s is not null)
-                    return true;
-
-            return false;
-        }
-
         if (source is string[] arr)
         {
             for (int i = 0; i < arr.Length; i++)
@@ -492,15 +483,6 @@ public static class EnumerableStringExtension
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(suffix);
-
-        if (suffix.Length == 0)
-        {
-            foreach (string? s in source)
-                if (s is not null)
-                    return true;
-
-            return false;
-        }
 
         if (source is string[] arr)
         {
