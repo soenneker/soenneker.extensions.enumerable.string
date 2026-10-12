@@ -43,8 +43,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Extensions.Enumerable" Version="4.0.673" />
-        <PackageReference Include="Soenneker.Extensions.Spans.ReadOnly.Strings" Version="4.0.43" />
-        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.776" />
+        <PackageReference Include="Soenneker.Extensions.Enumerable" Version="4.0.674" />
+        <PackageReference Include="Soenneker.Extensions.Spans.ReadOnly.Strings" Version="4.0.44" />
+        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.777" />
     </ItemGroup>
 </Project>
